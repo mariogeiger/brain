@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>cerveau</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #1a1a26;
+            font-family: 'Iowan Old Style', 'Hoefler Text', Georgia, serif;
+            color: #cdd6f4;
+        }
+        #wasm-container { position: fixed; inset: 0; }
+
+        #title {
+            position: fixed;
+            top: 32px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 28px;
+            font-style: italic;
+            letter-spacing: 4px;
+            color: #f9e2af;
+            text-shadow: 0 0 20px rgba(249, 226, 175, 0.35);
+            pointer-events: none;
+            z-index: 100;
+        }
+        #subtitle {
+            position: fixed;
+            bottom: 28px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 12px;
+            letter-spacing: 6px;
+            color: #6c7086;
+            text-transform: uppercase;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        #loading {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            z-index: 200;
+            transition: opacity 0.8s ease;
+        }
+        #loading .content { text-align: center; }
+        #loading h1 {
+            font-size: 32px;
+            font-weight: 400;
+            font-style: italic;
+            letter-spacing: 8px;
+            color: #f9e2af;
+            margin-bottom: 16px;
+        }
+        #loading p {
+            font-size: 13px;
+            letter-spacing: 3px;
+            color: #a6adc8;
+            text-transform: uppercase;
+            animation: pulse 1.6s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+        #webgpu-error {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            padding: 40px;
+        }
+        #webgpu-error .content { max-width: 560px; text-align: center; }
+        #webgpu-error h1 { font-size: 36px; color: #f38ba8; margin-bottom: 18px; font-weight: 400; font-style: italic; }
+        #webgpu-error p { font-size: 15px; color: #cdd6f4; line-height: 1.7; margin-bottom: 12px; }
+        #webgpu-error .browsers {
+            display: flex; justify-content: center; gap: 16px; margin: 24px 0;
+        }
+        #webgpu-error .browsers span {
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 8px;
+            color: #a6e3a1;
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+        #webgpu-error .hint { color: #6c7086; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="content">
+            <h1>cerveau</h1>
+            <p>chargement</p>
+        </div>
+    </div>
+
+    <div id="webgpu-error">
+        <div class="content">
+            <h1>WebGPU requis</h1>
+            <p>Cette page utilise WebGPU pour faire passer un rayon à travers les voxels.</p>
+            <div class="browsers">
+                <span>Chrome 113+</span>
+                <span>Edge 113+</span>
+                <span>Firefox 139+</span>
+            </div>
+            <p class="hint">Sur Safari, activez WebGPU dans Technology Preview.</p>
+        </div>
+    </div>
+
+    <div id="wasm-container"></div>
+    <div id="title">ceci est mon cerveau</div>
+    <div id="subtitle">fmri · 2 mm · juin 2025</div>
+
+    <script>
+        // Probe WebGPU before trunk's wasm loader fires.
+        (async () => {
+            if (!navigator.gpu) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('webgpu-error').style.display = 'flex';
+                return;
+            }
+            try {
+                const adapter = await navigator.gpu.requestAdapter();
+                if (!adapter) throw new Error('no adapter');
+            } catch (_) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('webgpu-error').style.display = 'flex';
+                return;
+            }
+            // Hand off to the WASM loader; once it logs "brain viewer up", fade out.
+            const t0 = performance.now();
+            const watch = setInterval(() => {
+                const canvas = document.querySelector('#wasm-container canvas');
+                if (canvas) {
+                    clearInterval(watch);
+                    const loading = document.getElementById('loading');
+                    loading.style.opacity = '0';
+                    setTimeout(() => loading.style.display = 'none', 800);
+                } else if (performance.now() - t0 > 30000) {
+                    clearInterval(watch);
+                }
+            }, 100);
+        })();
+    </script>
+
+    <link data-trunk rel="rust" data-wasm-opt="z" />
+    <link data-trunk rel="copy-file" href="brain.nii" />
+</body>
+</html>

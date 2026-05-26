@@ -1,0 +1,5 @@
+target/
+client/dist/
+*.nii
+*.nii.gz
+.DS_Store
