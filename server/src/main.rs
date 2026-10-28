@@ -27,7 +27,9 @@ async fn main() {
             let listener =
                 tokio::net::UnixListener::from_std(socket).expect("the socket is usable");
             log::info!("brain viewer on the socket systemd passed");
-            axum::serve(listener, app).await
+            axum::serve(listener, app)
+                .with_graceful_shutdown(stopped())
+                .await
         }
         None => {
             let addr = SocketAddr::from(([127, 0, 0, 1], PORT));
@@ -35,7 +37,9 @@ async fn main() {
                 .await
                 .expect("the port is free");
             log::info!("brain viewer listening on http://{addr}");
-            axum::serve(listener, app).await
+            axum::serve(listener, app)
+                .with_graceful_shutdown(stopped())
+                .await
         }
     }
     .expect("the server runs");
@@ -56,4 +60,16 @@ fn inherited_listener() -> Option<UnixListener> {
     Some(UnixListener::from(
         passed.try_clone().expect("the socket can be duplicated"),
     ))
+}
+
+/// Resolves when the process is asked to stop: SIGINT, or SIGTERM, which
+/// systemd and Podman send. In a container the server is PID 1, for which
+/// the kernel drops a SIGTERM it does not handle.
+async fn stopped() {
+    use tokio::signal::unix::{SignalKind, signal};
+    let mut term = signal(SignalKind::terminate()).expect("SIGTERM can be awaited");
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {}
+        _ = term.recv() => {}
+    }
 }
